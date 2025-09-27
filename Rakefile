@@ -1,8 +1,26 @@
-XMPP_VALA_VER = '0.1'
-LIBDINO_VER   = '0.0'
+LIBXMPP_VALA_VER = '0.1'
+LIBDINO_VER      = '0.1'
+LIBQLITE_VER     = '0.1'
 
-directory "./build"
-directory "./src/dino-ui"
+LIBS = ['libdino.so', 'libxmpp-vala.so', 'libqlite.so'].map do |l| [l,"#{l}.0"] end.flatten.push('libcrypto-vala.so.0')
+
+
+DINO_REPO   = ENV['DINO_REPO'] ||= 'https://github.com/dino/dino';
+DINO_SOURCE = File.expand_path(ENV['DINO_SOURCE_DIR'] ||= './git/dino/')
+DINO_BUILD  = File.expand_path(ENV['DINO_BUILD_DIR']  ||= "#{ENV['DINO_SOURCE_DIR']}/build")
+DINO_UI     = File.expand_path("./dino-ui")
+BUILD       = File.expand_path("./build")
+LIB_INSTALL = ENV['LIB_INSTALL'] ||= File.expand_path("/usr/lib/")
+TYPELIB_INSTALL = ENV['TYPELIB_INSTALL'] ||= "/usr/lib/girepository-1.0/"
+VAPI_INSTALL    = ENV['VAPI_INSTALL']    ||= "/usr/share/vala/vapi/"
+
+TYPELIBS   = ["Xmpp-#{LIBXMPP_VALA_VER}", "Dino-#{LIBDINO_VER}", "Qlite-#{LIBQLITE_VER}"].map do |f|
+  "#{BUILD}/#{f}.typelib"
+end
+
+VAPIS = ["Dino-#{LIBDINO_VER}","Xmpp-#{LIBXMPP_VALA_VER}","Qlite-#{LIBQLITE_VER}","DinoUI-#{LIBDINO_VER}","icu-uc"].map do |v|
+  "#{v}.vapi"
+end
 
 XMPP=[
     'src/core/direct_tls_xmpp_stream.vala',
@@ -128,7 +146,8 @@ XMPP=[
     'src/module/xep/0447_stateless_file_sharing.vala',
     'src/module/xep/0461_replies.vala',
     'src/module/xep/0482_call_invites.vala',
-    'src/module/xep/pixbuf_storage.vala',
+    "/src/module/xep/0231_bits_of_binary.vala",
+    #'src/module/xep/pixbuf_storage.vala',
     'src/util.vala',
 ]
 
@@ -189,7 +208,8 @@ DINO = [
     'src/util/util.vala',
     'src/util/weak_map.vala',
     'src/util/weak_timeout.vala',
-    'src/version.vala'
+    "../build/libdino/version.vala",
+    'src/service/occupant_id_store.vala'
   ]
 
 QLITE = [
@@ -205,39 +225,26 @@ QLITE = [
     'src/upsert_builder.vala',
 ]
 
-def file_insert pth, match
-  buff = open(pth).read
-  
-  File.open(pth, "w") do |f|
-    if buff =~ match
-    else
-      buff = buff.strip
-      buff[-1]="\n"
-      buff << yield
-    end
-    f.puts buff
-  end
-end
 
-def file_gsub pth, match, srch
-  buff = open(pth).read
-  
-  File.open(pth, "w") do |f|
-    if buff =~ match
-    else
-      buff = buff.gsub(srch, yield)
-    end
-    f.puts buff
-  end
-end
 
-#
-# xmpp-vala
-#
+desc "dino source root path"
+directory File.expand_path("#{DINO_SOURCE}/..")
+desc "typelib build path"
+directory "#{BUILD}"
+desc "libdino-ui source path"
+directory "#{DINO_UI}"
 
-file "./build/Xmpp-#{XMPP_VALA_VER}.gir" => ["./build"] do |t|
-exit
-  sh "cd build && valac -C -H xmpp.h --gir=Xmpp-#{XMPP_VALA_VER}.gir --library Xmpp-#{XMPP_VALA_VER} ../../dino/xmpp-vala/#{XMPP.join(" ../../dino/xmpp-vala/")} --pkg Gio-2.0 --pkg gee-0.8 --pkg gdk-pixbuf-2.0 --pkg icu-uc --vapidir=../../dino/xmpp-vala/vapi"
+#=======================================================================
+# libxmpp-vala
+#=======================================================================
+desc "make libxmpp-val .gir file"
+file "#{BUILD}/Xmpp-#{LIBXMPP_VALA_VER}.gir" => ["#{BUILD}"] do |t|
+
+  sh "cd #{BUILD} && valac -C -H xmpp.h --gir=Xmpp-#{LIBXMPP_VALA_VER}.gir "\
+    "--library Xmpp-#{LIBXMPP_VALA_VER} "\
+    "#{DINO_SOURCE}/xmpp-vala/#{XMPP.join(" #{DINO_SOURCE}/xmpp-vala/")} "\
+    "--pkg Gio-2.0 --pkg gee-0.8 --pkg gdk-pixbuf-2.0 --pkg icu-uc "\
+    "--vapidir=#{DINO_SOURCE}/xmpp-vala/vapi"
 
   search = /\<callback name\="OnInvalidCert".*?\<\/class\>/m
 
@@ -261,7 +268,7 @@ exit
       </callback>
   EOC
  
-  pth = "./build/Xmpp-#{XMPP_VALA_VER}.gir"
+  pth = "#{BUILD}/Xmpp-#{LIBXMPP_VALA_VER}.gir"
   buff = open(pth).read
   
   File.open(pth,"w") do |f|
@@ -269,102 +276,100 @@ exit
   end  
 end
 
-file "./build/Xmpp-#{XMPP_VALA_VER}.typelib" => ["./build/Xmpp-#{XMPP_VALA_VER}.gir"] do |t|
-  sh "g-ir-compiler --shared-library=../dino/build/libxmpp-vala.so #{t.prerequisites.join(' ')} -o #{t.name}"
+desc "make Xmpp typelib"
+file "#{BUILD}/Xmpp-#{LIBXMPP_VALA_VER}.typelib" => ["#{BUILD}/Xmpp-#{LIBXMPP_VALA_VER}.gir"] do |t|
+  sh "g-ir-compiler --shared-library=libxmpp-vala "\
+    "#{t.prerequisites.join(' ')} -o #{t.name}"
 end
 
-#
-# QLite
-#
-
-file "./build/Qlite-#{LIBDINO_VER}.gir" => ["./build"] do |t|
-   sh "cd build && valac -C -H qlite.h --gir=Qlite-#{LIBDINO_VER}.gir --library Qlite-#{LIBDINO_VER} ../../dino/qlite/#{QLITE.join(" ../../dino/qlite/")}  --vapidir=../../dino/qlite/vapi --pkg gee-0.8 --pkg sqlite3"
+desc "test lib Xmpp"
+task 'test-xmpp' do
+  sh "LD_LIBRARY_PATH=#{BUILD}:#{DINO_BUILD}/xmpp-vala GI_TYPELIB_PATH=#{BUILD} ruby ./test/xmpp.rb"
 end
 
-file "./build/Qlite-#{LIBDINO_VER}.typelib" => ["./build/Qlite-#{LIBDINO_VER}.gir"] do |t|
-  sh "g-ir-compiler --shared-library=../dino/build/qlite #{t.prerequisites.join(' ')} -o #{t.name}"
+#=======================================================================
+# libqlite
+#=======================================================================
+
+desc "make Qlite .gir file"
+file "#{BUILD}/Qlite-#{LIBQLITE_VER}.gir" => ["#{BUILD}"] do |t|
+  sh "cd #{BUILD} && valac -C -H qlite.h --gir=Qlite-#{LIBQLITE_VER}.gir "\
+    "--library Qlite-#{LIBQLITE_VER} "\
+    "#{DINO_SOURCE}/qlite/#{QLITE.join(" #{DINO_SOURCE}/qlite/")} "\
+    "--vapidir=#{DINO_SOURCE}/qlite/vapi "\
+    "--pkg gee-0.8 --pkg sqlite3"
 end
 
-#
-# libdino
-#
-
-file "./build/Dino-#{LIBDINO_VER}.gir" => ["./build"] do |t|
-  sh "cd build && valac -C -H dino.h --gir=Dino-#{LIBDINO_VER}.gir --library Dino-#{LIBDINO_VER} ../../dino/libdino/#{DINO.join(" ../../dino/libdino/")} --vapidir=./ --vapidir=../../dino/main/vapi/ --pkg gtk4 --vapidir=../../dino/libdino/vapi --vapidir=../../dino/build/exports --vapidir=../build --pkg Gio-2.0 --pkg gee-0.8 --pkg Xmpp-0.1 --pkg Qlite-0.0 --pkg sqlite3 --pkg gdk-pixbuf-2.0  --pkg icu-uc"
+desc "make Qlite typelib"
+file "#{BUILD}/Qlite-#{LIBQLITE_VER}.typelib" => ["#{BUILD}/Qlite-#{LIBQLITE_VER}.gir"] do |t|
+  sh "g-ir-compiler --shared-library=libqlite "\
+    "#{t.prerequisites.join(' ')} -o #{t.name}"
 end
 
-desc "build typelib for libdino (Dino)"
-file "./build/Dino-#{LIBDINO_VER}.typelib" => ["./build/Dino-#{LIBDINO_VER}.gir"] do |t|
-  sh "GI_TYPELIB_PATH=./build g-ir-compiler --includedir=./build --shared-library=../dino/build/libdino.so #{t.prerequisites.join(' ')} -o #{t.name}"
-end
-
-#
+#=======================================================================
 # libdino-ui
-#
+#=======================================================================
 
-task :extract_dino_ui do
-	i=-1
+desc "extracts basic UI elements (primarily enough for audio/video calls) as libdino-ui"
+task :extract_dino_ui => "#{DINO_UI}/ui.vala" do
+  i=-1
 	
-	DINO_UI = %w[../src/dino-ui/ui.vala ../../dino/main/src/ui/call_window/*.vala ../../dino/main/src/ui/widgets/avatar_picture.vala ../../dino/main/src/ui/add_conversation/select_contact_dialog.vala ../../dino/main/src/ui/util/accounts_combo_box.vala ../../dino/main/src/ui/add_conversation/add_contact_dialog.vala ../../dino/main/src/ui/add_conversation/select_jid_fragment.vala ../../dino/main/src/ui/add_conversation/list_row.vala ../../dino/main/src/ui/add_conversation/roster_list.vala ../../dino/main/src/ui/util/helper.vala].map do |q|
-	  q=File.expand_path("./build/#{q}")
-	  Dir.glob(q).map do |q| q end
-	end.flatten.map do |q|  
+  DINO_UI_FILES = ["./dino-ui/ui.vala",                       
+	 "#{DINO_SOURCE}/main/src/ui/call_window/*.vala",    
+	 "#{DINO_SOURCE}/main/src/ui/widgets/avatar_picture.vala",
+	 "#{DINO_SOURCE}/main/src/ui/add_conversation/select_contact_dialog.vala",
+	 "#{DINO_SOURCE}/main/src/ui/util/accounts_combo_box.vala",
+	 "#{DINO_SOURCE}/main/src/ui/add_conversation/add_contact_dialog.vala",
+	 "#{DINO_SOURCE}/main/src/ui/add_conversation/select_jid_fragment.vala",
+	 "#{DINO_SOURCE}/main/src/ui/add_conversation/list_row.vala",
+	 "#{DINO_SOURCE}/main/src/ui/add_conversation/roster_list.vala",
+	 "#{DINO_SOURCE}/main/src/ui/util/helper.vala"].map do |q|
+	q=File.expand_path("#{q}")
+    Dir.glob(q).map do |q| q end
+  end.flatten.map do |q|  
+    i+=1
+    next q if i == 0
+	  
+    sh "cp #{q} #{q="#{DINO_UI}/#{File.basename(q)}"}"
+	  
+	q
+  end.join(" ")
 
-	  i+=1
-	  next q if i == 0
-	  
-	  sh "cp #{q} #{q="./src/dino-ui/#{File.basename(q)}"}"
-	  
-	  
-	  q=".#{q}"
-	end.join(" ")
-
-	buff = open(pth="./src/dino-ui/call_window_controller.vala").read
-	File.open(pth,"w") do |f|
-	  f.puts buff.gsub("var app = GLib.Application.get_default() as", "//var app = GLib.Application.get_default() as").
-		gsub("inhibit_cookie = ", "inhibit_cookie = 1; //").
-		gsub("app.uninhibit", "//app.uninhibit")
-	end
+  buff = open(pth="#{DINO_UI}/call_window_controller.vala").read
+  File.open(pth,"w") do |f|
+	f.puts buff.gsub("var app = GLib.Application.get_default() as", "//var app = GLib.Application.get_default() as").
+	  gsub("inhibit_cookie = ", "inhibit_cookie = 1; //").
+	  gsub("app.uninhibit", "//app.uninhibit")
+  end
 end
 
-file "./build/DinoUI-#{LIBDINO_VER}.gir" => ["./build", :extract_dino_ui] do |t|
-  sh "cp ../dino/build/exports/dino_i18n.h ./build/"
-  sh "cd build && valac --gresourcesdir=#{File.expand_path("../dino/build/main/resources")} --gresources #{File.expand_path("../dino/main/data/gresource.xml")} -X -DGETTEXT_PACKAGE='dino_not_gettext' -o ./libdino-ui.so -X -I./ -X -fPIC -X -shared -H dino-ui.h --gir=DinoUI-#{LIBDINO_VER}.gir --library DinoUI-#{LIBDINO_VER} #{File.expand_path("../dino/build/main/resources")}/resources.c #{DINO_UI}  --vapidir=./ --vapidir=../../dino/main/vapi/ --pkg gtk4 --vapidir=../../dino/libdino/vapi --vapidir=../../dino/build/exports --vapidir=../build --pkg Dino-0.0 --pkg Xmpp-0.1 --pkg gee-0.8 --pkg Qlite-0.0 --pkg icu-uc"
+desc "make DinoUI .gir file"
+file "#{BUILD}/DinoUI-#{LIBDINO_VER}.gir" => ["#{BUILD}", :extract_dino_ui] do |t|
+  sh "cp #{DINO_SOURCE}/libdino/src/dino_i18n.h #{BUILD}/"
+  sh "glib-compile-resources --sourcedir=#{DINO_SOURCE}/main/data #{DINO_SOURCE}/main/data/gresource.xml --generate-source --target=#{DINO_UI}/resources.c"
+  sh "cd #{BUILD} && valac --gresourcesdir=#{DINO_UI} "\
+    "--gresources #{File.expand_path("#{DINO_SOURCE}/main/data/gresource.xml")} "\
+    "-X -DGETTEXT_PACKAGE='dino_not_gettext' -o ./libdino-ui.so -X -I./ -X -fPIC "\
+    "-X -shared -H dino-ui.h --gir=DinoUI-#{LIBDINO_VER}.gir --library DinoUI-#{LIBDINO_VER} "\
+    "#{DINO_UI}/resources.c "\
+    "#{DINO_UI_FILES}  --vapidir=./ --vapidir=#{DINO_SOURCE}/main/vapi/ --pkg gtk4 "\
+    "--vapidir=#{DINO_SOURCE}/libdino/vapi --vapidir=#{DINO_BUILD}/exports "\
+    "--vapidir=#{BUILD} --pkg Dino-#{LIBDINO_VER} --pkg Xmpp-#{LIBXMPP_VALA_VER} --pkg gee-0.8 --pkg Qlite-#{LIBQLITE_VER} --pkg icu-uc --pkg Adw-1 --pkg posix"
 end
 
-desc "build lib DinoUI"
-file "./build/DinoUI-#{LIBDINO_VER}.typelib" => ["./build/DinoUI-#{LIBDINO_VER}.gir"] do |t|
-  sh "GI_TYPELIB_PATH=./build g-ir-compiler --includedir=./build --shared-library=./build/libdino-ui.so #{t.prerequisites.join(' ')} -o #{t.name}"
+desc "build libdino-ui and typelib for DinoUI"
+file "#{BUILD}/DinoUI-#{LIBDINO_VER}.typelib" => ["#{BUILD}/DinoUI-#{LIBDINO_VER}.gir"] do |t|
+  
+  sh "GI_TYPELIB_PATH=#{BUILD} g-ir-compiler --includedir=#{BUILD} "\
+    "--shared-library=libdino-ui #{t.prerequisites.join(' ')} -o #{t.name}"
 end
 
-#
-#
-#
-file "./src/dino-ui/ui.vala" => [] do |t|
+# gettext :/
+file "#{DINO_UI}/ui.vala" => [] do |t|
   File.open(t.name, "w") do |f|
     code = <<~EOC
       public string dino_not_gettext(string s) {
         return s;	
-      }
-      
-      namespace Dino {
-
-          
-          public class GIUIApplication : Application, Gtk.Application {
-            public Database db { get; set; }
-            public Dino.Entities.Settings settings { get; set; }
-            public StreamInteractor stream_interactor { get; set; }
-            public Dino.Plugins.Registry plugin_registry { get; set; default=new Plugins.Registry(); }
-            public SearchPathGenerator? search_path_generator { get; set; }
-         
-            public virtual void handle_uri(string jid, string query, Gee.Map<string, string> options) {
-              
-            }
-            
-            public StreamInteractionModule? get_stream_interaction_module(Type t) {
-              return stream_interactor.get_module_by_type(t);
-            }
-          }
       }
     EOC
     
@@ -372,35 +377,53 @@ file "./src/dino-ui/ui.vala" => [] do |t|
   end 
 end
 
-desc "clone dino proper"
-task :'clone-dino' do
-  sh 'cd .. && git clone https://github.com/dino/dino'
+#=======================================================================
+# Dino
+#=======================================================================
+
+desc "clone dino-im/dino (https://github.com/dino-im/dino.git)"
+task :'clone-dino' => File.expand_path("#{DINO_SOURCE}/..") do
+  sh "cd #{File.expand_path("#{DINO_SOURCE}/..")} && git clone #{DINO_REPO}"
 end
 
+desc "Apply a few small changes to dino to support gobject-introspection"
 task :fix_dino do
-  file_insert "../dino/libdino/src/application.vala", /GIApplication/ do
-    <<~EOC
-          
-        public class GIApplication : Application, GLib.Application {
-          public Database db { get; set; }
-          public Dino.Entities.Settings settings { get; set; }
-          public StreamInteractor stream_interactor { get; set; }
-          public Dino.Plugins.Registry plugin_registry { get; set; default=new Plugins.Registry(); }
-          public SearchPathGenerator? search_path_generator { get; set; }
-       
-          public virtual void handle_uri(string jid, string query, Gee.Map<string, string> options) {
-            
-          }
-          
-          public StreamInteractionModule? get_stream_interaction_module(Type t) {
-            return stream_interactor.get_module_by_type(t);
-          }
-        }
-      }
-    EOC
+  buff = File.open(pth="#{DINO_SOURCE}/meson.build").read
+  buff = buff.gsub("subdir('main')",'')
+  File.open(pth,"w") do |o| o.puts buff end
+
+  buff = File.open("#{DINO_SOURCE}/libdino/src/application.vala").read
+  
+  {
+    "Database" => :db, "Dino.Entities.Settings" => :settings, "SearchPathGenerator?" => :search_path_generator, 
+    "Plugins.Registry" => :plugin_registry, "StreamInteractor" => :stream_interactor
+  }.each do |t,n|
+	  replace = <<~EOC
+		  public #{t} #{n} {
+			get {
+				var v=Value(typeof(#{t}));
+				this.get_property("#{n}", ref v);
+				return ((#{t})v);
+			}
+			
+			set {
+				var v=Value(typeof(#{t}));
+				v = value;
+				this.set_property("#{n}", v);
+			}
+		  }
+	  EOC
+	  
+	  buff = buff.gsub(x="public abstract #{t} #{n} { get; set; }", replace)
+	  p x
+  end
+  
+  File.open("#{DINO_SOURCE}/libdino/src/application.vala","w") do |o|
+    o.puts buff
   end
 
-  file_gsub("../dino/libdino/src/service/stream_interactor.vala", /get_module_by_type/, "public class StreamInteractor : Object {") do
+  buff = File.open(pth="#{DINO_SOURCE}/libdino/src/service/stream_interactor.vala").read
+  buff = buff.gsub("public class StreamInteractor : Object {") do
     <<~EOC
       public class StreamInteractor : Object {
         public StreamInteractionModule? get_module_by_type(Type t) {
@@ -408,64 +431,193 @@ task :fix_dino do
             if (module.get_type() == t) return module;
           }
           return null;
-        }    
+        }
+          
+		public ArrayList<StreamInteractionModule> interaction_modules { 
+		  owned get { 
+			  
+			  var a = new ArrayList<StreamInteractionModule>();
+			  foreach (var m in modules) {
+				  a.add(m);
+			  }
+			  return a;
+		  }
+		}    
         
     EOC
   end
   
-  buff = open(pth="../dino/libdino/src/util/weak_map.vala").read
+  File.open(pth,"w") do |o| o.puts buff end
+  
+  buff = File.open(pth="#{DINO_SOURCE}/libdino/src/util/weak_map.vala").read
+  
   File.open pth, "w" do |f|
+    buff = "namespace Dino {\n#{buff}\n}\n"
     
-    if buff =~ /namespace Dino/
-    else
-      buff = "namespace Dino {\n#{buff}\n}\n"
-    end
     f.puts buff
   end
   
-  buff = open(pth='../dino/xmpp-vala/src/module/xep/0392_consistent_color/hsluv.vala').read
+  buff = open(pth="#{DINO_SOURCE}/xmpp-vala/src/module/xep/0392_consistent_color/hsluv.vala").read
+  
   File.open pth, "w" do |f|
+    buff = "namespace Xmpp {\n#{buff}\n}\n"
     
-    if buff =~ /namespace Xmpp/
-    else
-      buff = "namespace Xmpp {\n#{buff}\n}\n"
-    end
+    f.puts buff
+  end
+  
+  buff = open(pth="#{DINO_SOURCE}/xmpp-vala/src/core/io_xmpp_stream.vala").read
+  
+  File.open pth, "w" do |f|
+    buff = buff.gsub(x="public abstract class Xmpp.IoXmppStream : XmppStream {", "#{x}\n    public signal void stanza_send(StanzaNode node);\n")
+    buff = buff.gsub(x="public override async void write_async(StanzaNode node, int io_priority = Priority.DEFAULT, Cancellable? cancellable = null) throws IOError {", "#{x}\n		stanza_send(node);\n")
+    
     f.puts buff
   end
 end
 
-desc "build dino proper"
-task :'build-dino' => [:fix_dino] do
-  sh 'cd ../dino && ./configure'
-  sh 'cd ../dino && make' 
-  
+
+task :'build_dino_' => [:fix_dino] do
+  sh "cd #{DINO_SOURCE} && meson setup build"
+  sh "cd #{DINO_SOURCE} && meson compile -C build" 
+  sh "cp #{DINO_BUILD}/plugins/*/*.so #{DINO_BUILD}/plugins/"
+  sh "mkdir -p #{DINO_BUILD}/exports"
+  sh "cp #{DINO_BUILD}/*/*.vapi #{DINO_BUILD}/exports/"
+  sh "cp #{DINO_SOURCE}/main/vapi/*.vapi #{DINO_BUILD}/exports"
+end
+
+task :'fix-deps' do  
   ['xmpp-vala.deps', 'dino.deps', 'qlite.deps'].each do |f|
-    buff = open(pth="../dino/build/exports/#{f}").read
+    b = f=='dino.deps'
+    buff = open(pth="#{DINO_SOURCE}/#{((q=f.split(".")[0]) == 'dino') ? 'libdino' : q}/#{f}").read
     File.open(pth,"w") do |o| o.puts buff.gsub("-e ", "") end
   end   
 end  
 
-desc "test lib Dino"
+desc "build dino-im/dino (libqlite, libxmpp-vala, libdino)"
+task :"build-dino" => [:'build_dino_', :'fix-deps'] do
+
+end
+
+#=======================================================================
+# libdino
+#=======================================================================
+
+desc "make Dino .gir file" 
+file "#{BUILD}/Dino-#{LIBDINO_VER}.gir" => ["#{BUILD}"] do |t|
+  sh "cd #{BUILD} && valac -C -H dino.h --gir=Dino-#{LIBDINO_VER}.gir "\
+    "--library Dino-#{LIBDINO_VER} #{DINO_SOURCE}/libdino/#{DINO.join(" #{DINO_SOURCE}/libdino/")} "\
+    "--vapidir=./ --vapidir=#{DINO_SOURCE}/main/vapi/ --pkg gtk4 --vapidir=#{DINO_SOURCE}/libdino/vapi "\
+    "--vapidir=#{DINO_BUILD}/exports --vapidir=#{BUILD} "\
+    "--pkg Gio-2.0 --pkg gee-0.8 --pkg Xmpp-#{LIBXMPP_VALA_VER} --pkg Qlite-#{LIBQLITE_VER} "\
+    "--pkg sqlite3 --pkg gdk-pixbuf-2.0  --pkg icu-uc"
+end
+
+desc "build typelib for libdino"
+file "#{BUILD}/Dino-#{LIBDINO_VER}.typelib" => ["#{BUILD}/Dino-#{LIBDINO_VER}.gir"] do |t|
+  sh "GI_TYPELIB_PATH=#{BUILD} g-ir-compiler --includedir=#{BUILD} "\
+    "--shared-library=libdino #{t.prerequisites.join(' ')} -o #{t.name}"
+end
+
+desc "test libdino"
 task :'test-dino' do
-  sh "LD_LIBRARY_PATH=./build GI_TYPELIB_PATH=./build ruby ./test/dino.rb"
+  sh "LD_LIBRARY_PATH=#{BUILD}:#{DINO_BUILD}/crypto-vala:#{DINO_BUILD}/xmpp-vala:#{DINO_BUILD}/qlite:#{DINO_BUILD}/libdino GI_TYPELIB_PATH=#{BUILD} ruby ./test/dino.rb"
 end
 
-desc "test lib Xmpp"
-task 'test-xmpp' do
-  sh "LD_LIBRARY_PATH=./build GI_TYPELIB_PATH=./build ruby ./test/xmpp.rb"
-end
+#=======================================================================
+# general tasks
+#=======================================================================
 
-desc "remove generated source and .o files"
+desc "remove generated source,gir, typelib and .o files"
 task :clean do
-  sh "rm -rf src build/*.o build/*.c"
+  sh "rm -rf #{DINO_UI} #{BUILD}/*.o #{BUILD}/*.c #{BUILD}/*.gir #{BUILD}/*.typelib"
 rescue
+end
+
+desc "clobber"
+task :clobber => :clean do
+  sh "rm -rf #{DINO_SOURCE}"
+end
+
+task :install do
+  sh "mkdir -p #{LIB_INSTALL}/gi-dino/plugins"
+  sh "cp #{BUILD}/libdino-ui.so #{LIB_INSTALL}"
+  
+  LIBS.each do |l|
+    sh "cp #{DINO_BUILD}/*/#{l} #{LIB_INSTALL}"
+  end
+  
+  sh "cp #{DINO_BUILD}/plugins/*.so #{LIB_INSTALL}/gi-dino/plugins/"
+  sh "cp #{BUILD}/*.typelib #{TYPELIB_INSTALL}/"
+  sh "cp #{BUILD}/*.vapi #{VAPI_INSTALL}/"
+  sh "cp #{DINO_BUILD}/exports/*.vapi #{VAPI_INSTALL}/"
+  
+  sh "mkdir -p sample/bin"
+  
+  puts "\n\nCompile Vala sample\n"
+  
+  sh "valac sample/dino.vala "\
+    "--pkg gio-2.0 --pkg DinoUI-0.1 --pkg Dino-0.1 --pkg Xmpp-0.1 --pkg gee-0.8 "\
+    "--pkg Qlite-0.1 --pkg gtk4 -X -I/usr/include/gi-dino -X -ldino "\
+    "-o sample/bin/dino -X -fPIC"
+    
+  puts <<~EOC
+    \n\nNOTE:\nvala sample @ ./sample/bin/dino
+    # Basic usage of libdino via GObject-Introspection - Ruby example
+    ruby sample/dino.rb
+    # Reference implentation of the GIDX (GI Dino Xmpp) library in Ruby
+    ruby sample/gidx.rb
+  EOC
+end
+
+task :uninstall do
+  sh "rm #{LIB_INSTALL}/libdino-ui.so"
+  LIBS.each do |l|
+    sh "rm #{LIB_INSTALL}/#{l}"
+  end
+  sh "rm -rf #{LIB_INSTALL}/gi-dino"
+  TYPELIBS.each do |f|
+    sh "rm /usr/lib/girepository-1.0/#{File.basename(f)}"
+  end
+  VAPIS.each do |v|
+    sh "rm /usr/share/vala/vapi/#{v}"
+  end
 end
 
 desc "builds all libs and typelibs for dino GI usage, run after `rake clone-dino && rake build-dino` "
 task :default => [
-                    './src/dino-ui', "./src/dino-ui/ui.vala", "./build/Xmpp-#{XMPP_VALA_VER}.typelib", 
-                    "./build/Qlite-#{LIBDINO_VER}.typelib", "./build/Dino-#{LIBDINO_VER}.typelib", 
-                    "./build/DinoUI-#{LIBDINO_VER}.typelib"
-                 ] do
+	"#{DINO_UI}", "#{DINO_UI}/ui.vala", "#{BUILD}/Xmpp-#{LIBXMPP_VALA_VER}.typelib", 
+	"#{BUILD}/Qlite-#{LIBDINO_VER}.typelib", "#{BUILD}/Dino-#{LIBDINO_VER}.typelib", 
+	"#{BUILD}/DinoUI-#{LIBDINO_VER}.typelib"
+] do
   
+end
+
+desc "build"
+task :build => [:'build-dino', :default] do
+
+end
+
+desc "test"
+task :test => [:'test-xmpp', :'test-dino'] do
+  sh "valac test/dino.vala --vapidir=#{BUILD} --vapidir=#{DINO_BUILD}/exports "\
+    "--pkg gio-2.0 --pkg DinoUI-0.1 --pkg Dino-0.1 --pkg Xmpp-0.1 --pkg gee-0.8 "\
+    "--pkg Qlite-0.1 --pkg gtk4 -X -I#{BUILD} -X -L#{DINO_BUILD}/libdino -X -ldino "\
+    "-o #{BUILD}/test_vala -X -fPIC"
+  sh "LD_LIBRARY_PATH=#{DINO_BUILD}/libdino ./build/test_vala"
+
+end
+
+desc "help"
+task :help do
+  puts <<~EOH
+    # export DINO_REPO="https://github.com/dino/dino"
+    rake clone-dino
+    # export DINO_SOURCE="./git/dino"
+    # export DINO_BUILD="./git/dino/build"
+    # export BUILD="./build"
+    rake build
+    rake test
+    # export LIB_INSTALL="/usr/lib"
+    rake install
+  EOH
 end

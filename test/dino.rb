@@ -1,40 +1,3 @@
-# gi-dino
-`GObjectIntropsection` capable version of `dino-im` - single file build system
-
-===Example (xmpp)
-```ruby
-require File.expand_path(File.join(File.dirname(__FILE__), "..", "xmpp/lib/xmpp"))
-
-@loop       = GLib::MainLoop.new
-stanza_node = Xmpp::StanzaNode.new("ree", "jabber:client")
-
-stanza_node.add_self_xmlns()
-
-stanza_node["bar"] = "42"
-
-fail "put/get" unless stanza_node["bar"] == "42"
-
-r = Xmpp::StanzaReader.new(str = "<message xmlns='jabber:client' type='chat' to='foo@bar.org'><body>ree</body></message>");
-
-r.read_stanza_node do |sr,t,c|
-
-  result = r.read_stanza_node_finish(t).to_xml();
-
-  fail "read stanza string" unless result == str
-  
-  @loop.quit
-end
-
-@loop.run
-
-```
-
-===Example (dino)
-```ruby
-#
-# Answer an incoming call (audio/video)!
-#
-
 require File.expand_path(File.join(File.dirname(__FILE__), "..", "xmpp/lib/xmpp"))
 require File.expand_path(File.join(File.dirname(__FILE__), "..", "dino/lib/dino"))
 
@@ -105,14 +68,3 @@ class App < Gio::Application
 end
 
 App.new.run
-
-```
-
-Vala
-
-```
-valac sample/dino.vala \
-    --pkg gio-2.0 --pkg DinoUI-0.1 --pkg Dino-0.1 --pkg Xmpp-0.1 --pkg gee-0.8 \
-    --pkg Qlite-0.1 --pkg gtk4 -X -I/usr/include/gi-dino -X -ldino \
-    -o sample/bin/dino -X -fPIC
-```
