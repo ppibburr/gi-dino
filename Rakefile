@@ -225,6 +225,28 @@ QLITE = [
     'src/upsert_builder.vala',
 ]
 
+CONVERT_OBJECT = {
+  StanzaEntry: 'xmpp-vala/src/core/stanza_node.vala',
+  Jid: 'xmpp-vala/src/module/jid.vala',
+  Database: 'qlite/src/database.vala',
+  Registry: 'libdino/src/plugin/registry.vala',
+  SearchPathGenerator: 'libdino/src/util/util.vala',
+  
+}
+
+task :convert_object do 
+  next unless ENV['CONVERT_OBJECT']
+  CONVERT_OBJECT.each do |t,f|
+    buff = File.open(s="#{DINO_SOURCE}/"+f).read
+    buff = buff.gsub(/class #{t} (\:|\{)/) do
+      "class #{t} : GLib.Object#{($1 == ":") ? ', ' : ' {'}"
+    end
+    File.open(s,'w') do |o|
+      o.puts buff
+    end
+  end
+end
+
 
 
 desc "dino source root path"
@@ -352,7 +374,7 @@ file "#{BUILD}/DinoUI-#{LIBDINO_VER}.gir" => ["#{BUILD}", :extract_dino_ui] do |
     "-X -DGETTEXT_PACKAGE='dino_not_gettext' -o ./libdino-ui.so -X -I./ -X -fPIC "\
     "-X -shared -H dino-ui.h --gir=DinoUI-#{LIBDINO_VER}.gir --library DinoUI-#{LIBDINO_VER} "\
     "#{DINO_UI}/resources.c "\
-    "#{DINO_UI_FILES}  --vapidir=./ --vapidir=#{DINO_SOURCE}/main/vapi/ --pkg gtk4 "\
+    "#{DINO_UI_FILES} ../test/dino.vala --vapidir=./ --vapidir=#{DINO_SOURCE}/main/vapi/ --pkg gtk4 "\
     "--vapidir=#{DINO_SOURCE}/libdino/vapi --vapidir=#{DINO_BUILD}/exports "\
     "--vapidir=#{BUILD} --pkg Dino-#{LIBDINO_VER} --pkg Xmpp-#{LIBXMPP_VALA_VER} --pkg gee-0.8 --pkg Qlite-#{LIBQLITE_VER} --pkg icu-uc --pkg Adw-1 --pkg posix"
 end
@@ -371,6 +393,21 @@ file "#{DINO_UI}/ui.vala" => [] do |t|
       public string dino_not_gettext(string s) {
         return s;	
       }
+      namespace Dino.Ui {
+      public class Application : Dino.Application, Gtk.Application {
+        public Database db {get;set;}
+        public SearchPathGenerator? search_path_generator {get;set;}
+        public StreamInteractor stream_interactor {get;set;}
+        public Plugins.Registry plugin_regsitry {get;set;}
+        public Dino.Entities.Settings settings {get;set;}
+        public Application(string id, GLib.ApplicationFlags flags) {
+          Object(application_id: id,flags: flags);
+        }
+        public void handle_uri(string a, string b, Gee.Map<string,string> c) {
+        
+        } 
+      }
+      }
     EOC
     
     f.puts code
@@ -387,7 +424,7 @@ task :'clone-dino' => File.expand_path("#{DINO_SOURCE}/..") do
 end
 
 desc "Apply a few small changes to dino to support gobject-introspection"
-task :fix_dino do
+task :fix_dino => :convert_object do
   buff = File.open(pth="#{DINO_SOURCE}/meson.build").read
   buff = buff.gsub("subdir('main')",'')
   File.open(pth,"w") do |o| o.puts buff end
@@ -597,14 +634,18 @@ task :build => [:'build-dino', :default] do
 
 end
 
+desc "test py"
+task :'test-python' do
+  sh "LD_LIBRARY_PATH=#{BUILD}:#{DINO_BUILD}/crypto-vala:#{DINO_BUILD}/xmpp-vala:#{DINO_BUILD}/qlite:#{DINO_BUILD}/libdino GI_TYPELIB_PATH=#{BUILD} python3 ./test/dino.py"
+end
+
 desc "test"
-task :test => [:'test-xmpp', :'test-dino'] do
+task :test => [:'test-xmpp', :'test-dino', :'test-python'] do
   sh "valac test/dino.vala --vapidir=#{BUILD} --vapidir=#{DINO_BUILD}/exports "\
     "--pkg gio-2.0 --pkg DinoUI-0.1 --pkg Dino-0.1 --pkg Xmpp-0.1 --pkg gee-0.8 "\
     "--pkg Qlite-0.1 --pkg gtk4 -X -I#{BUILD} -X -L#{DINO_BUILD}/libdino -X -ldino "\
-    "-o #{BUILD}/test_vala -X -fPIC"
+    "-X -L#{DINO_BUILD}/xmpp-vala -X -lxmpp-vala -X -L#{DINO_BUILD}/qlite -X -lqlite -o #{BUILD}/test_vala -X -fPIC"
   sh "LD_LIBRARY_PATH=#{DINO_BUILD}/libdino ./build/test_vala"
-
 end
 
 desc "help"
@@ -615,6 +656,8 @@ task :help do
     # export DINO_SOURCE="./git/dino"
     # export DINO_BUILD="./git/dino/build"
     # export BUILD="./build"
+    ## convert some types of GTypeInstance to inherit GObject instead
+    # export CONVERT_OBJECT=true
     rake build
     rake test
     # export LIB_INSTALL="/usr/lib"

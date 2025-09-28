@@ -6,7 +6,7 @@ require 'gio2'
 DINO_SOURCE = File.expand_path(ENV['DINO_SOURCE_DIR'] ||= './git/dino/')
 DINO_BUILD  = File.expand_path(ENV['DINO_BUILD_DIR']  ||= "#{ENV['DINO_SOURCE_DIR']}/build")
 
-ENV['SEARCH_PATH'] ||= DINO_BUILD
+ENV['SEARCH_PATH'] ||= DINO_BUILD+"/plugins"
 
 class App < Gio::Application
   type_register
@@ -19,13 +19,13 @@ class App < Gio::Application
     @plugin_registry ||= Dino::PluginsRegistry.new()
   end  
 
-  install_property(GLib::Param::Object.new(
+  install_property(GLib::Param::TypeInstance.new(
     "db", "db", "db",
     Dino::Database.gtype,
     224 | GLib::Param::READABLE | GLib::Param::WRITABLE
   ))
   
-  install_property(GLib::Param::Object.new(
+  install_property(GLib::Param::TypeInstance.new(
     "search-path-generator","Search Path Generator","sp sp",
     Dino::SearchPathGenerator,
     224 | GLib::Param::READABLE | GLib::Param::WRITABLE
@@ -37,13 +37,13 @@ class App < Gio::Application
     224 | GLib::Param::READABLE | GLib::Param::WRITABLE
   ))
   
-  install_property(GLib::Param::Object.new(
+  install_property(GLib::Param::TypeInstance.new(
     "plugin-registry","Plugin_registry","p p",
     Dino::PluginsRegistry,
     224 | GLib::Param::READABLE | GLib::Param::WRITABLE
   ))
   
-  install_property(GLib::Param::Object.new(
+  install_property(GLib::Param::TypeInstance.new(
     "stream-interactor","Stream IOnteracxtore","si p",
     Dino::StreamInteractor,
     224 | GLib::Param::READABLE | GLib::Param::WRITABLE
@@ -54,6 +54,8 @@ class App < Gio::Application
     
     @search_path = ENV['SEARCH_PATH'] ||= DINO_BUILD
     self.search_path_generator = Dino::SearchPathGenerator.new(@search_path);
+    
+    Dino::Loader.reference_gobject plugin_registry
     
     init();
     

@@ -252,13 +252,19 @@ module GIDX
       map[acct.bare_jid.to_s] || super(acct,app)
     end
   end
-  
+
   module ApplicationInterface
     attr_accessor :db, :search_path_generator, :settings, :stream_interactor, :search_path
     attr_writer   :plugin_registry
     
     def plugin_registry
-      @plugin_registry ||= Dino::PluginsRegistry.new()
+      r=@plugin_registry ||= Dino::PluginsRegistry.new()
+      
+      if r.is_a?(GLib::Object)
+        Dino::Loader.reference_gobject r
+      end
+      
+      r
     end
   
     def get_stream_interaction_module(t)

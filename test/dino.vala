@@ -4,10 +4,11 @@
   using Dino.Entities;
   
   public class Application : Dino.Application, Gtk.Application {
-	public Application() {
+	public Application(string id, GLib.ApplicationFlags flags) {
+		Object(application_id: id, flags: flags);
+		
 		activate.connect(()=>{
-			stdout.printf("WORKS\n");
-			quit();
+		  stdout.printf("works\n");
 		});
 	}  
 	
@@ -17,7 +18,7 @@
   }
   
   static int main() {
-	  var app = new Application();
+	  var app = new Application("org.wwoof.Ree", GLib.ApplicationFlags.HANDLES_OPEN);
 	  app.run();
 	  return 0;
   }
