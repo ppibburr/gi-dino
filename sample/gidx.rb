@@ -4,6 +4,11 @@ require File.expand_path(File.join(File.dirname(__FILE__), "..", "dino/lib/dino"
 require 'gtk4'
 
 module GIDX
+  GIDX_PRINT_INCOMING = (ENV['GIDX_PRINT_INCOMING'] || ENV['GIDX_PRINT']).to_i
+  GIDX_PRINT_OUTGOING = (ENV['GIDX_PRINT_OUTGOING'] || ENV['GIDX_PRINT']).to_i
+  
+  STDERR.puts "# set env variable GIDX_PRINT[_<INCOMING|OUTGOING>]=1 to see stanzas (in/out)"
+  
   class Entity < GLib::Object
     type_register
     
@@ -26,9 +31,10 @@ module GIDX
                 )
     # define 
     def signal_do_stanza_recv(s)
-      p time: Time.now, sti: s.to_xml if ARGV.index('--PRINT_INCOMING')
+      p time: Time.now, sti: s.to_xml if GIDX_PRINT_INCOMING == 1
+      STDERR.puts({time: Time.now, sti: s.to_xml}.inspect) if GIDX_PRINT_INCOMING == 2
     end
-    
+   
     define_signal("stanza_send",
                 GLib::Signal::RUN_FIRST, # flags
                 nil,                     # accumulator (XXX: not supported yet)
@@ -37,11 +43,13 @@ module GIDX
                 )
     # define 
     def signal_do_stanza_send(s)
-      p time: Time.now, sto: s.to_xml if ARGV.index('--PRINT_OUTGOING')
+      p time: Time.now, sto: s.to_xml if GIDX_PRINT_OUTGOING == 1
+      STDERR.puts({time: Time.now, sto: s.to_xml}.inspect) if GIDX_PRINT_OUTGOING == 2
     end    
     
     def signal name, rt=nil, params: [], flags: [:run_first], &b
       flags_ = nil
+      
       flags.each do |f| 
         if !flags
           flags_ = GLib::Signal.const_get(k.to_s.upcase.to_sym)
