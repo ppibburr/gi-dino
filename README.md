@@ -13,7 +13,7 @@ Easily develop a full featured and extendable XMPP Audio/Video Call capable clie
 `plugins` (omemo, rtp, ice, etc) - encryption, video/audio calling  
 
 # Note
-Tested in Ruby and Vala on debian
+Tested in Ruby, Python and Vala on debian
 
 # BUILD
 ```
