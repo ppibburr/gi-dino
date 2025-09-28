@@ -2,11 +2,13 @@
 `GObjectIntropsection` capable version of [https://github.com/dino/dino](dino/dino)
 
 # BUILD
+```
 rake help
 rake clone-dino
 rake build
 rake test
 rake install
+```
 
 ===Example (xmpp)
 ```ruby
