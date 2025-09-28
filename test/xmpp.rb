@@ -1,15 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), "..", "xmpp/lib/xmpp"))
 
-class Xmpp::StanzaNode
-  def [] k
-    get_attribute k
-  end
-  
-  def []= k,v
-    put_attribute k, v
-  end
-end
-
 @loop       = GLib::MainLoop.new
 stanza_node = Xmpp::StanzaNode.new("ree", "jabber:client")
 

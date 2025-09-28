@@ -20,3 +20,19 @@ module DinoUI
 
   Loader.load("DinoUI", self)
 end
+
+class Dino::Database
+  alias :_accounts_real :accounts 
+  def accounts
+    _accounts_real.map do |ptr|
+      Dino::Loader.instantiate_gobject_pointer(ptr)
+    end
+  end
+  
+  alias _get_conversations_real get_conversations
+  def get_conversations(acct)
+    _get_conversations_real(acct).map do |ptr|
+      Dino::Loader.instantiate_gobject_pointer(ptr)
+    end
+  end
+end

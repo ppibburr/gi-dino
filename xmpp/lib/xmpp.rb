@@ -37,7 +37,24 @@ class Xmpp::StanzaEntry
   def from; self[:from];end
 end
 
+class Xmpp::StanzaNode  
+  alias _get_subnodes_real get_subnodes
+  def get_subnodes(*o)
+    _get_subnodes_real(*o).map do |ptr|
+      Xmpp::Loader.instantiate_gobject_pointer(ptr)
+    end 
+  end
+end
 
+class Xmpp::XmppStream
+  def flags
+    get_property(:flags).map do |ptr|
+      Xmpp::Loader.instantiate_gobject_pointer(ptr)
+    end
+  end
+end
+
+if !Object.const_defined?("Gee")
 module Gee
   class Loader < GObjectIntrospection::Loader
   end
@@ -49,13 +66,13 @@ class Gee::ArrayList
   include Enumerable
   def each
     (0..(size-1)).each do |i|
-      x = Gee::Loader.instantiate_gobject_pointer(get(i))
+      x = get(i)
       yield x
     end
   end
   
   def [] i
-    Gee::Loader.instantiate_gobject_pointer(get(i))
+    get(i)
   end
 end
 
@@ -67,9 +84,5 @@ class Gee::HashMap
   def []= k,v
     set(k,v)
   end
-  
-  alias _get_ get
-  def get k
-    Gee::Loader.instantiate_gobject_pointer(_get_(k))
-  end
+end
 end
