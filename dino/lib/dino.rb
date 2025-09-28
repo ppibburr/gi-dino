@@ -36,3 +36,11 @@ class Dino::Database
     end
   end
 end
+
+class Dino::StreamInteractor
+  def interaction_modules
+    get_property(:interaction_modules).map do |ptr|
+      Dino::Loader.instantiate_gobject_pointer ptr
+    end
+  end
+end

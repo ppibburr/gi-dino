@@ -401,7 +401,8 @@ module GIDX
     end
     
     class CallWindow < DinoUI::UiCallWindow
-      type_register
+      ## FIXME: UI Controls disappear
+      # type_register
       
       def initialize state, stream_interactor
         super()
