@@ -1,6 +1,12 @@
 # gi-dino
 `GObjectIntropsection` capable version of [https://github.com/dino/dino](dino/dino)
 
+# ABOUT
+Allows for creating XMPP libraries and applications using Dino, in any language with GObject-Introspection support
+This project converts [https://github.com/dino/dino](dino/dino) into shared libraires that are introspectable
+
+Tested in Ruby and Vala on debian
+
 # BUILD
 ```
 rake help
