@@ -10,7 +10,7 @@ rake test
 rake install
 ```
 
-===Example (xmpp)
+=== Example (libxmpp-vala in ruby)
 ```ruby
 require File.expand_path(File.join(File.dirname(__FILE__), "..", "xmpp/lib/xmpp"))
 
@@ -38,7 +38,7 @@ end
 
 ```
 
-===Example (dino)
+=== Example (libdino in ruby)
 ```ruby
 #
 # Answer an incoming call (audio/video)!
@@ -170,7 +170,7 @@ Example.new.run
 
 ```
 
-Vala
+=== Vala
 
 ```
 valac sample/dino.vala \
