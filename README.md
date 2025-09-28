@@ -2,9 +2,17 @@
 `GObjectIntropsection` capable version of [https://github.com/dino/dino](dino/dino)
 
 # ABOUT
-Allows for creating XMPP libraries and applications using Dino, in any language with GObject-Introspection support
-This project converts [https://github.com/dino/dino](dino/dino) into shared libraires that are introspectable
+Allows for creating XMPP libraries and applications using Dino, in any language with GObject-Introspection support  
+This project converts [https://github.com/dino/dino](dino/dino) into shared libraires that are introspectable  
+Easily develop a full featured and extendable XMPP Audio/Video Call capable client in many languages.  
+# Components
+`libqlite` Dino's sqlite database library  
+`libxmpp-vala` Dino's Xmpp client library  
+`libdino` - the core of [https://github.com/dino/dino](dino/dino) stripped of the application and ui  
+`libdino-ui` - Just enough UI elements for audio/video call window  
+`plugins` (omemo, rtp, ice, etc) - encryption, video/audio calling  
 
+# Note
 Tested in Ruby and Vala on debian
 
 # BUILD
