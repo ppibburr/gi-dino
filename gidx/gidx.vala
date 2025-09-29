@@ -186,9 +186,33 @@
 		  
 	  }
 	  
-	  public void message(string to, string m) {
-		  
-	  }
+
+	  
+      public Conversation? conversation(string jid) {
+        foreach (var c in conversations) {
+			if(c.counterpart.bare_jid.to_string() == jid) return c;
+		}
+		return null;
+      }
+      
+      public ArrayList<Conversation> conversations {
+		owned get {  
+          return app.db.get_conversations(account);
+        }
+      }
+    
+      public void message(string jid,string msg, Dino.Entities.Conversation.Type? _ct=Dino.Entities.Conversation.Type.CHAT) {
+		var ct = _ct;
+		if(ct==null) ct=Dino.Entities.Conversation.Type.CHAT;
+        var c = conversation(jid);
+  
+        if(c==null) c = new Dino.Entities.Conversation(new Xmpp.Jid(jid), account, ct); 
+    
+        c.encryption = Dino.Entities.Encryption.OMEMO;
+
+        Dino.send_message(c, msg, 0, null, Xmpp.Xep.MessageMarkup.get_spans(new Xmpp.MessageStanza()));
+      } 
+	 
 	  
 	  public void send_stanza_string(string str, send_cb? cb=null) {
 		  var reader = new Xmpp.StanzaReader.for_string(str);

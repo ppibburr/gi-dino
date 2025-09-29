@@ -94,6 +94,8 @@ class App < Gtk::Application
       add_feature("urn:xmpp:microblog:0+notify")
       add_feature("urn:xmpp:microblog:0")
       p features
+      
+      message "cadenplays@pbr69.hopto.me","I AM REE"
     end
     
     alias _stanza stanza
