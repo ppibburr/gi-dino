@@ -1,6 +1,7 @@
 LIBXMPP_VALA_VER = '0.1'
 LIBDINO_VER      = '0.1'
 LIBQLITE_VER     = '0.1'
+LIBGIDX_VER      = '0.1' 
 
 LIBS = ['libdino.so', 'libxmpp-vala.so', 'libqlite.so'].map do |l| [l,"#{l}.0"] end.flatten.push('libcrypto-vala.so.0')
 
@@ -18,7 +19,7 @@ TYPELIBS   = ["Xmpp-#{LIBXMPP_VALA_VER}", "Dino-#{LIBDINO_VER}", "Qlite-#{LIBQLI
   "#{BUILD}/#{f}.typelib"
 end
 
-VAPIS = ["Dino-#{LIBDINO_VER}","Xmpp-#{LIBXMPP_VALA_VER}","Qlite-#{LIBQLITE_VER}","DinoUI-#{LIBDINO_VER}","icu-uc"].map do |v|
+VAPIS = ["Dino-#{LIBDINO_VER}","Xmpp-#{LIBXMPP_VALA_VER}","Qlite-#{LIBQLITE_VER}","DinoUI-#{LIBDINO_VER}", "GIDX-#{LIBGIDX_VER}","icu-uc"].map do |v|
   "#{v}.vapi"
 end
 
@@ -616,7 +617,7 @@ task :uninstall do
     sh "rm /usr/lib/girepository-1.0/#{File.basename(f)}"
   end
   VAPIS.each do |v|
-    sh "rm /usr/share/vala/vapi/#{v}"
+    sh "rm /usr/share/vala/vapi/#{v}" if File.exist?("rm /usr/share/vala/vapi/#{v}")
   end
 end
 
@@ -646,6 +647,31 @@ task :test => [:'test-xmpp', :'test-dino', :'test-python'] do
     "--pkg Qlite-0.1 --pkg gtk4 -X -I#{BUILD} -X -L#{DINO_BUILD}/libdino -X -ldino "\
     "-X -L#{DINO_BUILD}/xmpp-vala -X -lxmpp-vala -X -L#{DINO_BUILD}/qlite -X -lqlite -o #{BUILD}/test_vala -X -fPIC"
   sh "LD_LIBRARY_PATH=#{DINO_BUILD}/libdino ./build/test_vala"
+end
+
+task :'build-gidx' do
+  sh "cd #{BUILD} && valac ../gidx/gidx.vala --vapidir=#{BUILD} --vapidir=#{DINO_BUILD}/exports -X -shared --library GIDX-#{LIBGIDX_VER} --gir=GIDX-#{LIBGIDX_VER}.gir -H gidx.h "\
+    "--pkg gio-2.0 --pkg DinoUI-#{LIBDINO_VER} --pkg Dino-#{LIBDINO_VER} --pkg Xmpp-#{LIBXMPP_VALA_VER} --pkg gee-0.8 "\
+    "--pkg Qlite-#{LIBQLITE_VER} --pkg gtk4 -X -I#{BUILD} -X -L#{DINO_BUILD}/libdino -X -ldino "\
+    "-X -L#{DINO_BUILD}/xmpp-vala -X -lxmpp-vala -X -L#{DINO_BUILD}/qlite -X -lqlite -o #{BUILD}/libgidx.so -X -fPIC"
+  
+  sh "GI_TYPELIB_PATH=#{BUILD} g-ir-compiler --includedir=#{BUILD} "\
+    "--shared-library=libgidx #{BUILD}/GIDX-#{LIBGIDX_VER}.gir -o #{BUILD}/GIDX-#{LIBGIDX_VER}.typelib"
+end
+
+task :'test-gidx' do    
+  sh "LD_LIBRARY_PATH=#{BUILD}:#{DINO_BUILD}/crypto-vala:#{DINO_BUILD}/xmpp-vala:#{DINO_BUILD}/qlite:#{DINO_BUILD}/libdino GI_TYPELIB_PATH=#{BUILD} ruby ./test/gidx.rb"  
+end
+
+task :'install-gidx' => [:'build-gidx', 'test-gidx'] do
+  sh "sudo cp #{BUILD}/libgidx.so /usr/lib/"
+  sh "sudo cp #{BUILD}/GIDX-#{LIBGIDX_VER}.typelib /usr/lib/girepository-1.0/"
+  sh "sudo cp #{BUILD}/GIDX-#{LIBGIDX_VER}.vapi /usr/share/vala/vapi/"
+end
+
+desc "build, test, and install libgidx (GIDX GI Dino XMMP)"
+task :gidx => :'install-gidx' do
+
 end
 
 desc "help"
